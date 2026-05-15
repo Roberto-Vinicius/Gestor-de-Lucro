@@ -111,6 +111,19 @@ export default function DrawerLayout() {
           headerTitle: 'Nova Venda',
         }}
       />
+
+      {/* Rota 4: Histórico */}
+      <Drawer.Screen
+        name="historico/index"
+        options={{
+          title: 'Histórico',
+          drawerLabel: 'Histórico',
+          drawerIcon: ({ color }) => (
+            <Text style={{ fontSize: 20, color }}>📋</Text>
+          ),
+          headerTitle: 'Histórico Geral',
+        }}
+      />
     </Drawer>
   );
 }

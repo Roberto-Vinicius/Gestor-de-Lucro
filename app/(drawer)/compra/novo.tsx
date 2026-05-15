@@ -1,13 +1,11 @@
 /**
  * @file app/(drawer)/compra/novo.tsx
- * @description Formulário para registro de uma Nova Compra.
+ * @description Formulário para registro de uma Nova Compra com máscaras e validações.
  */
 
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,30 +18,65 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CORES, ESPACAMENTO, RAIO } from '../../../src/constants';
 import { useEstoqueStore } from '../../../src/store/useEstoqueStore';
+import { maskMoeda, desmaskMoeda, maskData, parseDataBr } from '../../../src/utils/masks';
+import { useUIStore } from '../../../src/store/useUIStore';
 
 export default function NovaCompraScreen() {
-  const router = useRouter();
   const { adicionarCompra } = useEstoqueStore();
+  const { mostrarSnackbar } = useUIStore();
 
+  const [dataStr, setDataStr] = useState('');
   const [nomeProduto, setNomeProduto] = useState('');
   const [valorCompraStr, setValorCompraStr] = useState('');
   const [detalhes, setDetalhes] = useState('');
   const [observacao, setObservacao] = useState('');
   const [salvando, setSalvando] = useState(false);
 
-  // Data atual fixada como padrão para a UI
-  const dataHoje = new Date().toLocaleDateString('pt-BR');
+  // Preenche a data inicial com o dia de hoje
+  useEffect(() => {
+    const hoje = new Date();
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const ano = hoje.getFullYear();
+    setDataStr(`${dia}/${mes}/${ano}`);
+  }, []);
+
+  const limparFormulario = () => {
+    const hoje = new Date();
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const ano = hoje.getFullYear();
+    
+    setDataStr(`${dia}/${mes}/${ano}`);
+    setNomeProduto('');
+    setValorCompraStr('');
+    setDetalhes('');
+    setObservacao('');
+  };
 
   const handleSalvar = async () => {
-    // Validação básica
     if (!nomeProduto.trim()) {
-      Alert.alert('Atenção', 'Informe o nome do produto.');
+      mostrarSnackbar('Informe o nome do produto.', 'aviso');
       return;
     }
 
-    const valor = parseFloat(valorCompraStr.replace(',', '.'));
-    if (isNaN(valor) || valor <= 0) {
-      Alert.alert('Atenção', 'Informe um valor de compra válido.');
+    const valor = desmaskMoeda(valorCompraStr);
+    if (valor <= 0) {
+      mostrarSnackbar('Informe um valor de compra válido.', 'aviso');
+      return;
+    }
+
+    const dataObj = parseDataBr(dataStr);
+    if (!dataObj) {
+      mostrarSnackbar('Data inválida. Use DD/MM/AAAA.', 'erro');
+      return;
+    }
+
+    // Impede adicionar datas no futuro
+    const hoje = new Date();
+    hoje.setHours(23, 59, 59, 999);
+    if (dataObj > hoje) {
+      mostrarSnackbar('A data não pode ser no futuro.', 'erro');
       return;
     }
 
@@ -54,15 +87,14 @@ export default function NovaCompraScreen() {
         valorCompra: valor,
         detalhes: detalhes.trim(),
         observacao: observacao.trim(),
-        dataCompra: new Date(), // Padrão: exato momento da submissão
+        dataCompra: dataObj,
         status: 'disponível',
       });
       
-      Alert.alert('Sucesso!', 'Compra registrada com sucesso.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      mostrarSnackbar('✅ Produto adicionado ao estoque!', 'sucesso');
+      limparFormulario();
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível salvar a compra.');
+      mostrarSnackbar('Não foi possível salvar a compra.', 'erro');
     } finally {
       setSalvando(false);
     }
@@ -78,11 +110,14 @@ export default function NovaCompraScreen() {
           <Text style={styles.titulo}>Registrar Compra</Text>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Data da Compra</Text>
+            <Text style={styles.label}>Data da Compra (DD/MM/AAAA)</Text>
             <TextInput
-              style={[styles.input, styles.inputDisabled]}
-              value={dataHoje}
-              editable={false}
+              style={styles.input}
+              placeholder="Ex: 15/05/2026"
+              placeholderTextColor={CORES.textoSecundario}
+              keyboardType="number-pad"
+              value={dataStr}
+              onChangeText={(txt) => setDataStr(maskData(txt))}
             />
           </View>
 
@@ -101,11 +136,11 @@ export default function NovaCompraScreen() {
             <Text style={styles.label}>Valor de Compra (R$)</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: 3500.00"
+              placeholder="Ex: 3.500,00"
               placeholderTextColor={CORES.textoSecundario}
-              keyboardType="decimal-pad"
+              keyboardType="number-pad"
               value={valorCompraStr}
-              onChangeText={setValorCompraStr}
+              onChangeText={(txt) => setValorCompraStr(maskMoeda(txt))}
             />
           </View>
 
@@ -185,9 +220,6 @@ const styles = StyleSheet.create({
     padding: ESPACAMENTO.md,
     color: CORES.texto,
     fontSize: 16,
-  },
-  inputDisabled: {
-    opacity: 0.6,
   },
   textArea: {
     minHeight: 100,

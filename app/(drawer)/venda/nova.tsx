@@ -1,13 +1,11 @@
 /**
  * @file app/(drawer)/venda/nova.tsx
- * @description Formulário para registro de uma Nova Venda.
+ * @description Formulário para registro de uma Nova Venda com máscaras.
  */
 
-import { useRouter } from 'expo-router';
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -24,10 +22,12 @@ import { CORES, ESPACAMENTO, RAIO } from '../../../src/constants';
 import { useEstoqueStore } from '../../../src/store/useEstoqueStore';
 import type { Compra } from '../../../src/types';
 import { formatarMoeda } from '../../../src/components/CardCompra';
+import { maskMoeda, desmaskMoeda, maskTelefone } from '../../../src/utils/masks';
+import { useUIStore } from '../../../src/store/useUIStore';
 
 export default function NovaVendaScreen() {
-  const router = useRouter();
   const { compras, registrarVenda } = useEstoqueStore();
+  const { mostrarSnackbar } = useUIStore();
 
   const comprasDisponiveis = compras.filter((c) => c.status === 'disponível');
 
@@ -41,11 +41,20 @@ export default function NovaVendaScreen() {
   const [salvando, setSalvando] = useState(false);
 
   // Cálculos em tempo real
-  const valorVendaNum = parseFloat(valorVendaStr.replace(',', '.')) || 0;
+  const valorVendaNum = desmaskMoeda(valorVendaStr);
   const lucroReal = compraSelecionada ? valorVendaNum - compraSelecionada.valorCompra : 0;
   const margemLucro = compraSelecionada && compraSelecionada.valorCompra > 0 
     ? (lucroReal / compraSelecionada.valorCompra) * 100 
     : 0;
+
+  const limparFormulario = () => {
+    setCompraSelecionada(null);
+    setDetalhesFinais('');
+    setValorVendaStr('');
+    setCompradorNome('');
+    setCompradorTelefone('');
+    setObservacao('');
+  };
 
   const handleSelecionarCompra = (compra: Compra) => {
     setCompraSelecionada(compra);
@@ -55,11 +64,11 @@ export default function NovaVendaScreen() {
 
   const handleSalvar = async () => {
     if (!compraSelecionada) {
-      Alert.alert('Atenção', 'Selecione um produto para vender.');
+      mostrarSnackbar('Selecione um produto para vender.', 'aviso');
       return;
     }
     if (valorVendaNum <= 0) {
-      Alert.alert('Atenção', 'Informe um valor de venda válido.');
+      mostrarSnackbar('Informe um valor de venda válido.', 'aviso');
       return;
     }
 
@@ -77,11 +86,10 @@ export default function NovaVendaScreen() {
         margemLucroPorcentagem: margemLucro,
       });
 
-      Alert.alert('Sucesso!', 'Venda registrada com sucesso.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      mostrarSnackbar('✅ Item vendido e estoque atualizado!', 'sucesso');
+      limparFormulario();
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível registrar a venda.');
+      mostrarSnackbar('Não foi possível registrar a venda.', 'erro');
     } finally {
       setSalvando(false);
     }
@@ -96,7 +104,7 @@ export default function NovaVendaScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Text style={styles.titulo}>Registrar Venda</Text>
 
-          {/* Selecionador de Produto (Simula um Select Native) */}
+          {/* Selecionador de Produto */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Produto</Text>
             <TouchableOpacity 
@@ -122,11 +130,11 @@ export default function NovaVendaScreen() {
                 <Text style={styles.label}>Valor da Venda (R$)</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ex: 4500.00"
+                  placeholder="Ex: 4.500,00"
                   placeholderTextColor={CORES.textoSecundario}
-                  keyboardType="decimal-pad"
+                  keyboardType="number-pad"
                   value={valorVendaStr}
-                  onChangeText={setValorVendaStr}
+                  onChangeText={(txt) => setValorVendaStr(maskMoeda(txt))}
                 />
               </View>
 
@@ -168,11 +176,11 @@ export default function NovaVendaScreen() {
                 <Text style={styles.label}>Telefone do Comprador (Opcional)</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ex: 84 99999-9999"
+                  placeholder="Ex: (84) 99999-9999"
                   placeholderTextColor={CORES.textoSecundario}
                   keyboardType="phone-pad"
                   value={compradorTelefone}
-                  onChangeText={setCompradorTelefone}
+                  onChangeText={(txt) => setCompradorTelefone(maskTelefone(txt))}
                 />
               </View>
 
@@ -238,7 +246,6 @@ export default function NovaVendaScreen() {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
