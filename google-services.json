@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "859583818059",
+    "project_id": "firestore-69148",
+    "storage_bucket": "firestore-69148.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:859583818059:android:550797ba7c5495cc9ba0ce",
+        "android_client_info": {
+          "package_name": "com.roberto.estoque"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBtGbsdiaiOQ4MV_cxoOd9LqYs6OgT0KA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
